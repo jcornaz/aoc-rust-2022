@@ -1,33 +1,21 @@
 type Output = u64;
 
 pub fn part_1(input: &str) -> Output {
-    solve(input, 1)
+    parse(input).max().unwrap_or_default()
 }
 
 pub fn part_2(input: &str) -> Output {
-    solve(input, 3)
-}
-
-fn solve(input: &str, n: usize) -> u64 {
-    let mut elves = parse(input);
+    let mut elves: Vec<_> = parse(input).collect();
     elves.sort();
-    elves.into_iter().rev().take(n).sum()
+    elves.into_iter().rev().take(3).sum()
 }
 
-fn parse(input: &str) -> Vec<u64> {
-    let mut elves: Vec<u64> = Vec::new();
-    let mut current_elf: u64 = 0;
-    for line in input.lines() {
-        match line.parse::<u64>() {
-            Ok(v) => current_elf += v,
-            Err(_) => {
-                elves.push(current_elf);
-                current_elf = 0;
-            }
-        }
-    }
-    elves.push(current_elf);
-    elves
+fn parse(input: &str) -> impl Iterator<Item = Output> + '_ {
+    input.split("\n\n").map(|elf| {
+        elf.lines()
+            .filter_map(|fruit| fruit.parse::<Output>().ok())
+            .sum()
+    })
 }
 
 #[cfg(test)]
