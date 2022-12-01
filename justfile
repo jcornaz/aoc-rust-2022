@@ -3,7 +3,7 @@ set dotenv-load
 @_list:
 	just --list --unsorted
 
-year := "2015"
+year := "2022"
 day := "1"
 
 # Fetch your personal input (requires an `AOC_SESSION`)
