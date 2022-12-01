@@ -1,13 +1,17 @@
 type Output = u64;
 
 pub fn part_1(input: &str) -> Output {
-    parse(input).into_iter().max().unwrap_or_default()
+    solve(input, 1)
 }
 
 pub fn part_2(input: &str) -> Output {
+    solve(input, 3)
+}
+
+fn solve(input: &str, n: usize) -> u64 {
     let mut elves = parse(input);
     elves.sort();
-    elves.into_iter().rev().take(3).sum()
+    elves.into_iter().rev().take(n).sum()
 }
 
 fn parse(input: &str) -> Vec<u64> {
