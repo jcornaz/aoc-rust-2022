@@ -1,6 +1,12 @@
-# aoc-template
+# aoc-rust-2022
 
-My template for solving the [advent-of-code](https://adventofcode.com) puzzles with rust.
+My rust solutions for the [advent of code](https://adventofcode.com/) 2022
+
+> **Warning**
+>
+> I may not solve every puzzle.
+
+I also have some solutions written rust: https://github.com/jcornaz/aoc-kotlin-2022
 
 ## Unlicense
 
