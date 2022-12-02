@@ -6,7 +6,7 @@ My rust solutions for the [advent of code](https://adventofcode.com/) 2022
 >
 > I may not solve every puzzle.
 
-I also have some solutions written rust: https://github.com/jcornaz/aoc-kotlin-2022
+I also have some solutions written in kotlin: https://github.com/jcornaz/aoc-kotlin-2022
 
 ## Unlicense
 
