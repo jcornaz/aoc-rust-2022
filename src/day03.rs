@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use itertools::Itertools;
 
 type Output = u64;
@@ -7,20 +5,29 @@ type Output = u64;
 pub fn part_1(input: &str) -> Output {
     input
         .lines()
-        .map(|line| {
+        .filter_map(|line| {
             let (comp1, comp2) = line.split_at(line.len() / 2);
-            let item = find_misplaced_item(comp1, comp2);
-            score_of(item)
+            find_item_in_all(&[comp1, comp2])
         })
+        .map(score_of)
         .sum()
 }
 
-fn find_misplaced_item(compartment1: &str, compartment2: &str) -> char {
-    let compartment1: HashSet<char> = compartment1.chars().collect();
-    compartment2
+pub fn part_2(input: &str) -> Output {
+    let mut sum = 0;
+    for group in &input.lines().chunks(3) {
+        let group: Vec<_> = group.collect();
+        let Some(badge) = find_item_in_all(&group) else { continue };
+        sum += score_of(badge);
+    }
+    sum
+}
+
+fn find_item_in_all(sacks: &[&str]) -> Option<char> {
+    sacks
+        .first()?
         .chars()
-        .find(|c| compartment1.contains(c))
-        .unwrap_or_default()
+        .find(|&c| sacks.iter().skip(1).all(|s| s.contains(c)))
 }
 
 fn score_of(item: char) -> Output {
@@ -31,24 +38,6 @@ fn score_of(item: char) -> Output {
     } else {
         0
     }
-}
-
-pub fn part_2(input: &str) -> Output {
-    let mut sum = 0;
-    for group in &input.lines().chunks(3) {
-        let group: Vec<_> = group.collect();
-        let Some(badge) = find_badge(&group) else { continue };
-        sum += score_of(badge);
-    }
-    sum
-}
-
-fn find_badge(sacks: &[&str]) -> Option<char> {
-    let sets: Vec<HashSet<char>> = sacks.iter().skip(1).map(|s| s.chars().collect()).collect();
-    sacks
-        .first()?
-        .chars()
-        .find(|c| sets.iter().all(|s| s.contains(c)))
 }
 
 #[cfg(test)]
@@ -101,17 +90,6 @@ CrZsJsPPZsGzwwsLwLmpwMDw
     }
 
     #[rstest]
-    #[case("ab", "bc", 'b')]
-    #[case("vJrwpWtwJgWr", "hcsFMMfFFhFp", 'p')]
-    fn should_find_misplaced_item(
-        #[case] compartment1: &str,
-        #[case] compartment2: &str,
-        #[case] expected: char,
-    ) {
-        assert_eq!(find_misplaced_item(compartment1, compartment2), expected);
-    }
-
-    #[rstest]
     #[case('a', 1)]
     #[case('b', 2)]
     #[case('z', 26)]
@@ -122,9 +100,11 @@ CrZsJsPPZsGzwwsLwLmpwMDw
     }
 
     #[rstest]
-    #[case(["ab", "ac", "ad"], 'a')]
-    #[case(["abc", "acd", "czy"], 'c')]
-    fn should_find_badge(#[case] sacks: [&str; 3], #[case] expected: char) {
-        assert_eq!(find_badge(&sacks), Some(expected));
+    #[case(&["ab", "bc"], 'b')]
+    #[case(&["vJrwpWtwJgWr", "hcsFMMfFFhFp"], 'p')]
+    #[case(&["ab", "ac", "ad"], 'a')]
+    #[case(&["abc", "acd", "czy"], 'c')]
+    fn should_find_badge(#[case] sacks: &[&str], #[case] expected: char) {
+        assert_eq!(find_item_in_all(&sacks), Some(expected));
     }
 }
