@@ -37,7 +37,8 @@ pub fn part_2(input: &str) -> Output {
     let mut sum = 0;
     for group in &input.lines().chunks(3) {
         let group: Vec<_> = group.collect();
-        sum += score_of(find_badge(&group).unwrap());
+        let Some(badge) = find_badge(&group) else { continue };
+        sum += score_of(badge);
     }
     sum
 }
