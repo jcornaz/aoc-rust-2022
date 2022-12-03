@@ -1,5 +1,7 @@
 use std::collections::HashSet;
 
+use itertools::Itertools;
+
 type Output = u64;
 
 pub fn part_1(input: &str) -> Output {
@@ -11,10 +13,6 @@ pub fn part_1(input: &str) -> Output {
             score_of(item)
         })
         .sum()
-}
-
-pub fn part_2(input: &str) -> Output {
-    input.parse().unwrap()
 }
 
 fn find_misplaced_item(compartment1: &str, compartment2: &str) -> char {
@@ -35,6 +33,23 @@ fn score_of(item: char) -> Output {
     }
 }
 
+pub fn part_2(input: &str) -> Output {
+    let mut sum = 0;
+    for group in &input.lines().chunks(3) {
+        let group: Vec<_> = group.collect();
+        sum += score_of(find_badge(&group).unwrap());
+    }
+    sum
+}
+
+fn find_badge(sacks: &[&str]) -> Option<char> {
+    let sets: Vec<HashSet<char>> = sacks.iter().map(|s| s.chars().collect()).collect();
+    sacks
+        .first()?
+        .chars()
+        .find(|c| sets.iter().all(|s| s.contains(c)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -50,6 +65,18 @@ CrZsJsPPZsGzwwsLwLmpwMDw
 
     const INPUT: &str = include_str!("day03/input.txt");
 
+    const SACK_EXAMPLE_1: &str = r#"
+vJrwpWtwJgWrhcsFMMfFFhFp
+jqHRNqRjqzjGDLGLrsFMfFZSrLrFZsSL
+PmmdzqPrVvPwwTWBwg
+    "#;
+
+    const SACK_EXAMPLE_2: &str = r#"
+wMqvLMZHhHMvwLHjbvcjnnSBnvTQFn
+ttgJtRGJQctTZtZT
+CrZsJsPPZsGzwwsLwLmpwMDw
+    "#;
+
     #[rstest]
     #[case("", 0)]
     #[case("vJrwpWtwJgWrhcsFMMfFFhFp", 16)]
@@ -61,10 +88,13 @@ CrZsJsPPZsGzwwsLwLmpwMDw
     }
 
     #[rstest]
-    #[ignore = "not implemented"]
-    #[case::example(EXAMPLE, 0)]
-    #[ignore = "not implemented"]
-    #[case::input(INPUT, 0)]
+    #[case("", 0)]
+    #[case("a\na\na", 1)]
+    #[case("a\na\na\nb\nb\nb", 3)]
+    #[case(SACK_EXAMPLE_1, 18)]
+    #[case(SACK_EXAMPLE_2, 52)]
+    #[case::example(EXAMPLE, 70)]
+    #[case::input(INPUT, 2276)]
     fn test_part_2(#[case] input: &str, #[case] expected: Output) {
         assert_eq!(part_2(input.trim()), expected);
     }
@@ -88,5 +118,12 @@ CrZsJsPPZsGzwwsLwLmpwMDw
     #[case('B', 28)]
     fn should_find_score(#[case] item: char, #[case] expected: Output) {
         assert_eq!(score_of(item), expected);
+    }
+
+    #[rstest]
+    #[case(["ab", "ac", "ad"], 'a')]
+    #[case(["abc", "acd", "czy"], 'c')]
+    fn should_find_badge(#[case] sacks: [&str; 3], #[case] expected: char) {
+        assert_eq!(find_badge(&sacks), Some(expected));
     }
 }
