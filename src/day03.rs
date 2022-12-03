@@ -44,7 +44,7 @@ pub fn part_2(input: &str) -> Output {
 }
 
 fn find_badge(sacks: &[&str]) -> Option<char> {
-    let sets: Vec<HashSet<char>> = sacks.iter().map(|s| s.chars().collect()).collect();
+    let sets: Vec<HashSet<char>> = sacks.iter().skip(1).map(|s| s.chars().collect()).collect();
     sacks
         .first()?
         .chars()
