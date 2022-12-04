@@ -3,11 +3,19 @@ use std::ops::RangeInclusive;
 type Output = usize;
 
 pub fn part_1(input: &str) -> Output {
-    input.lines().filter(|s| is_full_overlap(s)).count()
+    input
+        .lines()
+        .filter_map(parse_line)
+        .filter(is_full_overlap)
+        .count()
 }
 
 pub fn part_2(input: &str) -> Output {
-    input.lines().filter(|s| is_overlap(s)).count()
+    input
+        .lines()
+        .filter_map(parse_line)
+        .filter(is_overlap)
+        .count()
 }
 
 fn parse_line(input: &str) -> Option<(RangeInclusive<u32>, RangeInclusive<u32>)> {
@@ -22,13 +30,11 @@ fn parse_range(input: &str) -> Option<RangeInclusive<u32>> {
     Some(min.parse::<u32>().ok()?..=max.parse::<u32>().ok()?)
 }
 
-fn is_overlap(input: &str) -> bool {
-    let Some((left, right)) = parse_line(input) else { return false };
+fn is_overlap((left, right): &(RangeInclusive<u32>, RangeInclusive<u32>)) -> bool {
     left.contains(right.start()) || left.contains(right.end()) || right.contains(left.start())
 }
 
-fn is_full_overlap(input: &str) -> bool {
-    let Some((left, right)) = parse_line(input) else { return false };
+fn is_full_overlap((left, right): &(RangeInclusive<u32>, RangeInclusive<u32>)) -> bool {
     (left.contains(right.start()) && left.contains(right.end()))
         || (right.contains(left.start()) && right.contains(left.end()))
 }
@@ -80,7 +86,8 @@ mod tests {
     #[case("6-6,4-6", true)]
     #[case("2-6,4-8", false)]
     fn should_reckognize_full_overlap(#[case] input: &str, #[case] expected: bool) {
-        assert_eq!(is_full_overlap(input), expected);
+        let input = parse_line(input).unwrap();
+        assert_eq!(is_full_overlap(&input), expected);
     }
 
     #[rstest]
@@ -92,6 +99,7 @@ mod tests {
     #[case("2-6,4-8", true)]
     #[case("3-4,1-5", true)]
     fn should_reckognize_partial_overlap(#[case] input: &str, #[case] expected: bool) {
-        assert_eq!(is_overlap(input), expected);
+        let input = parse_line(input).unwrap();
+        assert_eq!(is_overlap(&input), expected);
     }
 }
