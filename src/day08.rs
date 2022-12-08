@@ -1,4 +1,4 @@
-use std::{convert::Infallible, str::FromStr};
+use std::{convert::Infallible, iter, str::FromStr};
 
 use grid::Grid;
 
@@ -9,18 +9,26 @@ pub fn part_1(input: &str) -> Output {
 }
 
 pub fn part_2(input: &str) -> Output {
-    input.parse().unwrap()
+    input.parse::<Forest>().unwrap().max_score()
 }
 
 struct Forest(Grid<u8>);
 
 impl Forest {
-    fn count_visible(&self) -> usize {
+    fn coords(&self) -> impl Iterator<Item = (usize, usize)> + '_ {
         let (h, w) = self.0.size();
-        (0..w)
-            .flat_map(|x| (0..h).map(move |y| (x, y)))
-            .filter(|&c| self.is_visible(c))
-            .count()
+        (0..w).flat_map(move |x| (0..h).map(move |y| (x, y)))
+    }
+
+    fn count_visible(&self) -> usize {
+        self.coords().filter(|&c| self.is_visible(c)).count()
+    }
+
+    fn max_score(&self) -> usize {
+        self.coords()
+            .map(|p| self.score(p))
+            .max()
+            .unwrap_or_default()
     }
 
     fn is_visible(&self, (x, y): (usize, usize)) -> bool {
@@ -29,6 +37,37 @@ impl Forest {
             || ((y + 1)..self.0.rows()).all(|y| self.0[y][x] < value)
             || (0..x).all(|x| self.0[y][x] < value)
             || ((x + 1)..self.0.cols()).all(|x| self.0[y][x] < value)
+    }
+
+    fn score(&self, coord: (usize, usize)) -> usize {
+        [(0, 1), (0, -1), (1, 0), (-1, 0)]
+            .into_iter()
+            .map(|step| self.visible_trees(coord, step))
+            .product()
+    }
+
+    fn visible_trees(&self, (x, y): (usize, usize), (dx, dy): (i32, i32)) -> usize {
+        let value = self.0[y][x];
+        iter::successors(Some((x as i32, y as i32)), |(x, y)| {
+            Some((*x + dx, *y + dy))
+        })
+        .skip(1)
+        .take_while(|(x, y)| (*y as usize) < self.0.rows() && (*x as usize) < self.0.cols())
+        .map(|(x, y)| self.0[y as usize][x as usize])
+        .enumerate()
+        .find(|(_, t)| *t >= value)
+        .map(|(i, _)| i + 1)
+        .unwrap_or_else(|| {
+            if dy < 0 {
+                y
+            } else if dy > 0 {
+                self.0.rows() - y - 1
+            } else if dx > 0 {
+                self.0.cols() - x - 1
+            } else {
+                x
+            }
+        })
     }
 }
 
@@ -68,10 +107,8 @@ mod tests {
     }
 
     #[rstest]
-    #[ignore = "not implemented"]
-    #[case::example(EXAMPLE, 0)]
-    #[ignore = "not implemented"]
-    #[case::input(INPUT, 0)]
+    #[case::example(EXAMPLE, 8)]
+    #[case::input(INPUT, 590824)]
     fn test_part_2(#[case] input: &str, #[case] expected: Output) {
         assert_eq!(part_2(input.trim()), expected);
     }
@@ -91,5 +128,74 @@ mod tests {
         #[case] expected: bool,
     ) {
         assert_eq!(forest.is_visible(coord), expected);
+    }
+
+    #[rstest]
+    #[case("1", (0, 0), 0)]
+    #[case("123\n456\n789", (1, 1), 1)]
+    #[case(EXAMPLE.trim().parse::<Forest>().unwrap(), (2, 3), 8)]
+    fn should_compute_score(
+        #[case] forest: Forest,
+        #[case] coord: (usize, usize),
+        #[case] expected: usize,
+    ) {
+        assert_eq!(forest.score(coord), expected);
+    }
+
+    #[rstest]
+    #[case("1", (0, 0), 0)]
+    #[case("1\n2", (0, 0), 0)]
+    #[case("1\n2", (0, 1), 1)]
+    #[case("1\n2\n3", (0, 1), 1)]
+    #[case("1\n2\n3", (0, 2), 2)]
+    #[case("1\n3\n3", (0, 2), 1)]
+    fn should_find_number_of_tree_up(
+        #[case] forest: Forest,
+        #[case] coord: (usize, usize),
+        #[case] expected: usize,
+    ) {
+        assert_eq!(forest.visible_trees(coord, (0, -1)), expected);
+    }
+
+    #[rstest]
+    #[case("1", (0, 0), 0)]
+    #[case("1\n2", (0, 0), 1)]
+    #[case("1\n2", (0, 1), 0)]
+    #[case("1\n2\n3", (0, 1), 1)]
+    #[case("3\n2\n3", (0, 0), 2)]
+    #[case("3\n3\n3", (0, 0), 1)]
+    #[case("3\n3\n2", (0, 1), 1)]
+    fn should_find_number_of_tree_down(
+        #[case] forest: Forest,
+        #[case] coord: (usize, usize),
+        #[case] expected: usize,
+    ) {
+        assert_eq!(forest.visible_trees(coord, (0, 1)), expected);
+    }
+
+    #[rstest]
+    #[case("1", (0, 0), 0)]
+    #[case("3213", (0, 0), 3)]
+    #[case("3211", (0, 0), 3)]
+    #[case("3211", (1, 0), 2)]
+    fn should_find_number_of_tree_right(
+        #[case] forest: Forest,
+        #[case] coord: (usize, usize),
+        #[case] expected: usize,
+    ) {
+        assert_eq!(forest.visible_trees(coord, (1, 0)), expected);
+    }
+
+    #[rstest]
+    #[case("1", (0, 0), 0)]
+    #[case("3213", (0, 0), 0)]
+    #[case("3213", (2, 0), 1)]
+    #[case("1121", (2, 0), 2)]
+    fn should_find_number_of_tree_left(
+        #[case] forest: Forest,
+        #[case] coord: (usize, usize),
+        #[case] expected: usize,
+    ) {
+        assert_eq!(forest.visible_trees(coord, (-1, 0)), expected);
     }
 }
