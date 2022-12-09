@@ -4,15 +4,19 @@ use std::str::FromStr;
 type Output = usize;
 
 pub fn part_1(input: &str) -> Output {
-    let mut tracker = Tracker::default();
+    solve(input, 2)
+}
+
+pub fn part_2(input: &str) -> Output {
+    solve(input, 10)
+}
+
+fn solve(input: &str, len: usize) -> Output {
+    let mut tracker = Tracker::new(len);
     for (d, n) in input.lines().map(|l| l.split_once(' ').unwrap()) {
         tracker.move_head(d.parse().unwrap(), n.parse().unwrap());
     }
     tracker.tail_visited()
-}
-
-pub fn part_2(input: &str) -> Output {
-    input.parse().unwrap()
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -39,23 +43,19 @@ impl FromStr for Direction {
 
 struct Tracker {
     tail_positions: HashSet<(i32, i32)>,
-    current_head: (i32, i32),
-    current_tail: (i32, i32),
+    queue: Vec<(i32, i32)>,
 }
 
-impl Default for Tracker {
-    fn default() -> Self {
+impl Tracker {
+    fn new(len: usize) -> Self {
         let mut tail_positions = HashSet::new();
         tail_positions.insert((0, 0));
         Self {
             tail_positions,
-            current_tail: (0, 0),
-            current_head: (0, 0),
+            queue: vec![(0, 0); len],
         }
     }
-}
 
-impl Tracker {
     fn move_head(&mut self, d: Direction, n: i32) {
         let (dx, dy) = match d {
             Direction::Right => (1, 0),
@@ -65,20 +65,24 @@ impl Tracker {
         };
 
         for _ in 0..n {
-            self.current_head.0 += dx;
-            self.current_head.1 += dy;
-            if self.distance() > 1 {
-                self.current_tail.0 = self.current_head.0 - dx;
-                self.current_tail.1 = self.current_head.1 - dy;
-                self.tail_positions.insert(self.current_tail);
+            self.queue[0].0 += dx;
+            self.queue[0].1 += dy;
+            for i in 1..self.queue.len() {
+                if self.distance(i) > 1 {
+                    self.queue[i].0 = self.queue[i - 1].0 - dx;
+                    self.queue[i].1 = self.queue[i - 1].1 - dy;
+                }
             }
+            self.tail_positions.insert(*self.queue.last().unwrap());
         }
     }
 
-    fn distance(&self) -> i32 {
-        (self.current_head.0 - self.current_tail.0)
+    fn distance(&self, index: usize) -> i32 {
+        let front_knot = self.queue[index - 1];
+        let back_knot = self.queue[index];
+        (front_knot.0 - back_knot.0)
             .abs()
-            .max((self.current_head.1 - self.current_tail.1).abs())
+            .max((front_knot.1 - back_knot.1).abs())
     }
 
     fn tail_visited(&self) -> Output {
@@ -121,7 +125,7 @@ R 2
 
     #[rstest]
     #[ignore = "not implemented"]
-    #[case::example(EXAMPLE, 0)]
+    #[case::example(EXAMPLE, 36)]
     #[ignore = "not implemented"]
     #[case::input(INPUT, 0)]
     fn test_part_2(#[case] input: &str, #[case] expected: Output) {
