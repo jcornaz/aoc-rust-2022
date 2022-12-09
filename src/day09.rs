@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::fmt::Debug;
+use std::iter;
 use std::str::FromStr;
 
 type Output = usize;
@@ -16,9 +17,10 @@ fn solve(input: &str, rope_len: usize) -> Output {
     input
         .lines()
         .map(|l| l.split_once(' ').unwrap())
-        .filter_map(|(d, n)| Some((d.parse().ok()?, n.parse().ok()?)))
-        .fold(Rope::new(rope_len), |mut rope, (direction, distance)| {
-            rope.move_head(direction, distance);
+        .filter_map(|(d, n)| Some((d.parse::<Direction>().ok()?, n.parse().ok()?)))
+        .flat_map(|(d, n)| iter::repeat(d).take(n))
+        .fold(Rope::new(rope_len), |mut rope, direction| {
+            rope.move_head(direction);
             rope
         })
         .tail_visits_count()
@@ -46,6 +48,17 @@ impl FromStr for Direction {
     }
 }
 
+impl From<Direction> for (i32, i32) {
+    fn from(d: Direction) -> Self {
+        match d {
+            Direction::Right => (1, 0),
+            Direction::Left => (-1, 0),
+            Direction::Up => (0, 1),
+            Direction::Down => (0, -1),
+        }
+    }
+}
+
 struct Rope {
     tail_visits: HashSet<(i32, i32)>,
     knots: Vec<(i32, i32)>,
@@ -61,23 +74,15 @@ impl Rope {
         }
     }
 
-    fn move_head(&mut self, d: Direction, n: i32) {
-        let (dx, dy) = match d {
-            Direction::Right => (1, 0),
-            Direction::Left => (-1, 0),
-            Direction::Up => (0, 1),
-            Direction::Down => (0, -1),
-        };
-
-        for _ in 0..n {
-            self.knots[0].0 += dx;
-            self.knots[0].1 += dy;
-            for i in 1..self.knots.len() {
-                let head = self.knots[i - 1];
-                Self::update_tail_knot(&mut self.knots[i], head);
-            }
-            self.tail_visits.insert(*self.knots.last().unwrap());
+    fn move_head(&mut self, direction: Direction) {
+        let (dx, dy) = direction.into();
+        self.knots[0].0 += dx;
+        self.knots[0].1 += dy;
+        for i in 1..self.knots.len() {
+            let head = self.knots[i - 1];
+            Self::update_tail_knot(&mut self.knots[i], head);
         }
+        self.tail_visits.insert(*self.knots.last().unwrap());
     }
 
     fn update_tail_knot((x, y): &mut (i32, i32), (hx, hy): (i32, i32)) {
