@@ -12,12 +12,16 @@ pub fn part_2(input: &str) -> Output {
     solve(input, 10)
 }
 
-fn solve(input: &str, len: usize) -> Output {
-    let mut tracker = Tracker::new(len);
-    for (d, n) in input.lines().map(|l| l.split_once(' ').unwrap()) {
-        tracker.move_head(d.parse().unwrap(), n.parse().unwrap());
-    }
-    tracker.tail_visited()
+fn solve(input: &str, rope_len: usize) -> Output {
+    input
+        .lines()
+        .map(|l| l.split_once(' ').unwrap())
+        .filter_map(|(d, n)| Some((d.parse().ok()?, n.parse().ok()?)))
+        .fold(Rope::new(rope_len), |mut rope, (direction, distance)| {
+            rope.move_head(direction, distance);
+            rope
+        })
+        .tail_visits_count()
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -42,18 +46,18 @@ impl FromStr for Direction {
     }
 }
 
-struct Tracker {
-    tail_positions: HashSet<(i32, i32)>,
-    queue: Vec<(i32, i32)>,
+struct Rope {
+    tail_visits: HashSet<(i32, i32)>,
+    knots: Vec<(i32, i32)>,
 }
 
-impl Tracker {
+impl Rope {
     fn new(len: usize) -> Self {
         let mut tail_positions = HashSet::new();
         tail_positions.insert((0, 0));
         Self {
-            tail_positions,
-            queue: vec![(0, 0); len],
+            tail_visits: tail_positions,
+            knots: vec![(0, 0); len],
         }
     }
 
@@ -66,18 +70,14 @@ impl Tracker {
         };
 
         for _ in 0..n {
-            self.queue[0].0 += dx;
-            self.queue[0].1 += dy;
-            for i in 1..self.queue.len() {
-                let head = self.queue[i - 1];
-                Self::update_tail_knot(&mut self.queue[i], head);
+            self.knots[0].0 += dx;
+            self.knots[0].1 += dy;
+            for i in 1..self.knots.len() {
+                let head = self.knots[i - 1];
+                Self::update_tail_knot(&mut self.knots[i], head);
             }
-            self.tail_positions.insert(*self.queue.last().unwrap());
+            self.tail_visits.insert(*self.knots.last().unwrap());
         }
-    }
-
-    fn tail_visited(&self) -> Output {
-        self.tail_positions.len()
     }
 
     fn update_tail_knot((x, y): &mut (i32, i32), (hx, hy): (i32, i32)) {
@@ -85,6 +85,10 @@ impl Tracker {
             *x += (hx - *x).clamp(-1, 1);
             *y += (hy - *y).clamp(-1, 1);
         }
+    }
+
+    fn tail_visits_count(&self) -> Output {
+        self.tail_visits.len()
     }
 }
 
@@ -174,7 +178,7 @@ U 20
     #[case((2,-2), (1, -1))]
     fn should_move_tail_towards_head(#[case] head: (i32, i32), #[case] expected: (i32, i32)) {
         let mut tail = (0, 0);
-        Tracker::update_tail_knot(&mut tail, head);
+        Rope::update_tail_knot(&mut tail, head);
         assert_eq!(tail, expected);
     }
 }
