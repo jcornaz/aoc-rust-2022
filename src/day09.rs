@@ -81,15 +81,9 @@ impl Tracker {
     }
 
     fn update_tail_knot((x, y): &mut (i32, i32), (hx, hy): (i32, i32)) {
-        if (hx - *x).abs() > 1 {
+        if (hx - *x).abs() > 1 || (hy - *y).abs() > 1 {
             *x += (hx - *x).clamp(-1, 1);
             *y += (hy - *y).clamp(-1, 1);
-        } else if hy - *y > 1 {
-            *y += 1;
-            *x = hx;
-        } else if *y - hy > 1 {
-            *y -= 1;
-            *x = hx;
         }
     }
 }
