@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::fmt::Debug;
 use std::str::FromStr;
 
 type Output = usize;
@@ -68,25 +69,28 @@ impl Tracker {
             self.queue[0].0 += dx;
             self.queue[0].1 += dy;
             for i in 1..self.queue.len() {
-                if self.distance(i) > 1 {
-                    self.queue[i].0 = self.queue[i - 1].0 - dx;
-                    self.queue[i].1 = self.queue[i - 1].1 - dy;
-                }
+                let head = self.queue[i - 1];
+                Self::update_tail_knot(&mut self.queue[i], head);
             }
             self.tail_positions.insert(*self.queue.last().unwrap());
         }
     }
 
-    fn distance(&self, index: usize) -> i32 {
-        let front_knot = self.queue[index - 1];
-        let back_knot = self.queue[index];
-        (front_knot.0 - back_knot.0)
-            .abs()
-            .max((front_knot.1 - back_knot.1).abs())
-    }
-
     fn tail_visited(&self) -> Output {
         self.tail_positions.len()
+    }
+
+    fn update_tail_knot((x, y): &mut (i32, i32), (hx, hy): (i32, i32)) {
+        if (hx - *x).abs() > 1 {
+            *x += (hx - *x).clamp(-1, 1);
+            *y += (hy - *y).clamp(-1, 1);
+        } else if hy - *y > 1 {
+            *y += 1;
+            *x = hx;
+        } else if *y - hy > 1 {
+            *y -= 1;
+            *x = hx;
+        }
     }
 }
 
@@ -105,6 +109,8 @@ L 5
 R 2
     "#;
 
+    const INPUT: &str = include_str!("day09/input.txt");
+
     #[rstest]
     #[case("R 4", 4)]
     #[case("R 4\nR 4", 8)]
@@ -115,20 +121,66 @@ R 2
     #[case("U 4\nD 2", 4)]
     #[case("U 4\nD 2\nR 2", 5)]
     #[case("R 4\nU 4", 7)]
+    #[case("R 4\nU 4\nL 3", 9)]
     #[case::example(EXAMPLE, 13)]
     #[case::input(INPUT, 6486)]
     fn test_part_1(#[case] input: &str, #[case] expected: Output) {
         assert_eq!(part_1(input.trim()), expected);
     }
 
-    const INPUT: &str = include_str!("day09/input.txt");
+    const LARGER_EXAMPLE: &str = r#"
+R 5
+U 8
+L 8
+D 3
+R 17
+D 10
+L 25
+U 20
+    "#;
 
     #[rstest]
-    #[ignore = "not implemented"]
-    #[case::example(EXAMPLE, 36)]
-    #[ignore = "not implemented"]
-    #[case::input(INPUT, 0)]
+    #[case::example(LARGER_EXAMPLE, 36)]
+    #[case::input(INPUT, 2678)]
     fn test_part_2(#[case] input: &str, #[case] expected: Output) {
         assert_eq!(part_2(input.trim()), expected);
+    }
+
+    #[rstest]
+    #[case(3, "R 2", 1)]
+    #[case(3, "R 3", 2)]
+    #[case(3, "R 3\nU 1", 2)]
+    #[case(3, "R 3\nU 2", 3)]
+    fn test_solve(#[case] len: usize, #[case] instructions: &str, #[case] expected: Output) {
+        assert_eq!(solve(instructions, len), expected);
+    }
+
+    #[rstest]
+    #[case((0,0), (0,0))]
+    #[case((1,0), (0,0))]
+    #[case((2,0), (1,0))]
+    #[case((-1,0), (0,0))]
+    #[case((-2,0), (-1,0))]
+    #[case((0,1), (0,0))]
+    #[case((0,2), (0,1))]
+    #[case((0,-1), (0,0))]
+    #[case((0,-2), (0,-1))]
+    #[case((1,1), (0, 0))]
+    #[case((2,1), (1, 1))]
+    #[case((1,2), (1, 1))]
+    #[case((-1,1), (0, 0))]
+    #[case((-2,1), (-1, 1))]
+    #[case((-1,2), (-1, 1))]
+    #[case((-1,-1), (0, 0))]
+    #[case((-2,-1), (-1, -1))]
+    #[case((-1,-2), (-1, -1))]
+    #[case((2,2), (1, 1))]
+    #[case((-2,2), (-1, 1))]
+    #[case((-2,-2), (-1, -1))]
+    #[case((2,-2), (1, -1))]
+    fn should_move_tail_towards_head(#[case] head: (i32, i32), #[case] expected: (i32, i32)) {
+        let mut tail = (0, 0);
+        Tracker::update_tail_knot(&mut tail, head);
+        assert_eq!(tail, expected);
     }
 }
