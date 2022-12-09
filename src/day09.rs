@@ -1,11 +1,89 @@
-type Output = u64;
+use std::collections::HashSet;
+use std::str::FromStr;
+
+type Output = usize;
 
 pub fn part_1(input: &str) -> Output {
-    input.parse().unwrap()
+    let mut tracker = Tracker::default();
+    for (d, n) in input.lines().map(|l| l.split_once(' ').unwrap()) {
+        tracker.move_head(d.parse().unwrap(), n.parse().unwrap());
+    }
+    tracker.tail_visited()
 }
 
 pub fn part_2(input: &str) -> Output {
     input.parse().unwrap()
+}
+
+#[derive(Debug, Copy, Clone)]
+enum Direction {
+    Right,
+    Left,
+    Up,
+    Down,
+}
+
+impl FromStr for Direction {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "R" => Direction::Right,
+            "L" => Direction::Left,
+            "U" => Direction::Up,
+            "D" => Direction::Down,
+            d => return Err(format!("unknown direction: {d}")),
+        })
+    }
+}
+
+struct Tracker {
+    tail_positions: HashSet<(i32, i32)>,
+    current_head: (i32, i32),
+    current_tail: (i32, i32),
+}
+
+impl Default for Tracker {
+    fn default() -> Self {
+        let mut tail_positions = HashSet::new();
+        tail_positions.insert((0, 0));
+        Self {
+            tail_positions,
+            current_tail: (0, 0),
+            current_head: (0, 0),
+        }
+    }
+}
+
+impl Tracker {
+    fn move_head(&mut self, d: Direction, n: i32) {
+        let (dx, dy) = match d {
+            Direction::Right => (1, 0),
+            Direction::Left => (-1, 0),
+            Direction::Up => (0, 1),
+            Direction::Down => (0, -1),
+        };
+
+        for _ in 0..n {
+            self.current_head.0 += dx;
+            self.current_head.1 += dy;
+            if self.distance() > 1 {
+                self.current_tail.0 = self.current_head.0 - dx;
+                self.current_tail.1 = self.current_head.1 - dy;
+                self.tail_positions.insert(self.current_tail);
+            }
+        }
+    }
+
+    fn distance(&self) -> i32 {
+        (self.current_head.0 - self.current_tail.0)
+            .abs()
+            .max((self.current_head.1 - self.current_tail.1).abs())
+    }
+
+    fn tail_visited(&self) -> Output {
+        self.tail_positions.len()
+    }
 }
 
 #[cfg(test)]
@@ -13,19 +91,33 @@ mod tests {
     use super::*;
 
     const EXAMPLE: &str = r#"
-
+R 4
+U 4
+L 3
+D 1
+R 4
+D 1
+L 5
+R 2
     "#;
 
-    const INPUT: &str = include_str!("day09/input.txt");
-
     #[rstest]
-    #[ignore = "not implemented"]
-    #[case::example(EXAMPLE, 0)]
-    #[ignore = "not implemented"]
-    #[case::input(INPUT, 0)]
+    #[case("R 4", 4)]
+    #[case("R 4\nR 4", 8)]
+    #[case("R 4\nL 4", 4)]
+    #[case("L 4", 4)]
+    #[case("U 4", 4)]
+    #[case("U 4\nU 2", 6)]
+    #[case("U 4\nD 2", 4)]
+    #[case("U 4\nD 2\nR 2", 5)]
+    #[case("R 4\nU 4", 7)]
+    #[case::example(EXAMPLE, 13)]
+    #[case::input(INPUT, 6486)]
     fn test_part_1(#[case] input: &str, #[case] expected: Output) {
         assert_eq!(part_1(input.trim()), expected);
     }
+
+    const INPUT: &str = include_str!("day09/input.txt");
 
     #[rstest]
     #[ignore = "not implemented"]
