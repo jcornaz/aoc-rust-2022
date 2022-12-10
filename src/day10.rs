@@ -3,11 +3,7 @@ use std::{iter, str::FromStr};
 type Output = i32;
 
 pub fn part_1(input: &str) -> Output {
-    let instructions: Vec<Instruction> = input
-        .lines()
-        .map(|l| l.parse::<Instruction>().unwrap())
-        .collect();
-    let mut device = Device::new(1, instructions);
+    let mut device = init_device(input);
     let mut last = 1;
     let mut result = 0;
     for cycle in iter::successors(Some(20), |c| Some(*c + 40)).take_while(|c| *c <= 220) {
@@ -19,8 +15,29 @@ pub fn part_1(input: &str) -> Output {
     result
 }
 
-pub fn part_2(input: &str) -> Output {
-    input.parse().unwrap()
+pub fn part_2(input: &str) -> String {
+    let mut device = init_device(input);
+    let mut result = String::with_capacity(41 * 6);
+    for _ in 0..6 {
+        for col in 0..40 {
+            if (col - device.register_value()).abs() < 2 {
+                result.push('#');
+            } else {
+                result.push('.');
+            }
+            device.advance(1);
+        }
+        result.push('\n');
+    }
+    result
+}
+
+fn init_device(input: &str) -> Device {
+    let instructions: Vec<Instruction> = input
+        .lines()
+        .map(|l| l.parse::<Instruction>().unwrap())
+        .collect();
+    Device::new(1, instructions)
 }
 
 struct Device {
@@ -99,12 +116,32 @@ mod tests {
     }
 
     #[rstest]
-    #[ignore = "not implemented"]
-    #[case::example(EXAMPLE, 0)]
-    #[ignore = "not implemented"]
-    #[case::input(INPUT, 0)]
-    fn test_part_2(#[case] input: &str, #[case] expected: Output) {
-        assert_eq!(part_2(input.trim()), expected);
+    #[case::example(
+        EXAMPLE,
+        r#"
+##..##..##..##..##..##..##..##..##..##..
+###...###...###...###...###...###...###.
+####....####....####....####....####....
+#####.....#####.....#####.....#####.....
+######......######......######......####
+#######.......#######.......#######.....
+    "#
+    )]
+    #[case::input(
+        INPUT,
+        r#"
+###....##.####.###..###..####.####..##..
+#..#....#.#....#..#.#..#.#....#....#..#.
+#..#....#.###..#..#.#..#.###..###..#....
+###.....#.#....###..###..#....#....#....
+#.#..#..#.#....#.#..#....#....#....#..#.
+#..#..##..####.#..#.#....####.#.....##..
+    "#
+    )]
+    fn test_part_2(#[case] input: &str, #[case] expected: &str) {
+        let result = part_2(input.trim());
+        println!("{}", result);
+        assert_eq!(result, format!("{}\n", expected.trim()));
     }
 
     #[rstest]
