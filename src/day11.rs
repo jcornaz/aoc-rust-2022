@@ -4,33 +4,26 @@ type Output = usize;
 type WorryLevel = u64;
 
 pub fn part_1(input: &str) -> Output {
-    let mut monkeys = parse_monkeys(input);
-    let mut ids: Vec<_> = monkeys.keys().copied().collect();
-    ids.sort();
-    for _ in 0..20 {
-        for id in ids.iter().copied() {
-            let mut monkey = monkeys.remove(&id).unwrap();
-            for (target, item) in monkey.throw_all(3) {
-                monkeys.get_mut(&target).unwrap().catch(item);
-            }
-            monkeys.insert(id, monkey);
-        }
-    }
-    let mut inspections: Vec<_> = monkeys.values().map(|m| m.inspected).collect();
-    inspections.sort();
-    inspections.into_iter().rev().take(2).product()
+    solve(input, 3, 20)
 }
 
 pub fn part_2(input: &str) -> Output {
+    solve(input, 1, 10_000)
+}
+
+fn solve(input: &str, worry_level_divisor: WorryLevel, rounds: u32) -> Output {
     let mut monkeys = parse_monkeys(input);
     let mut ids: Vec<_> = monkeys.keys().copied().collect();
     ids.sort();
-    let modulo: WorryLevel = monkeys.values().map(|m| m.test_divisor).product();
-    for _ in 0..10_000 {
+    let max_worry_level: WorryLevel = monkeys.values().map(|m| m.test_divisor).product();
+    for _ in 0..rounds {
         for id in ids.iter().copied() {
             let mut monkey = monkeys.remove(&id).unwrap();
-            for (target, item) in monkey.throw_all(1) {
-                monkeys.get_mut(&target).unwrap().catch(item % modulo);
+            for (target, item) in monkey.throw_all(worry_level_divisor) {
+                monkeys
+                    .get_mut(&target)
+                    .unwrap()
+                    .catch(item % max_worry_level);
             }
             monkeys.insert(id, monkey);
         }
