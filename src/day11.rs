@@ -1,6 +1,7 @@
 use std::{collections::HashMap, convert::Infallible, fmt::Debug, str::FromStr};
 
 type Output = usize;
+type WorryLevel = u64;
 
 pub fn part_1(input: &str) -> Output {
     let mut monkeys = parse_monkeys(input);
@@ -9,7 +10,7 @@ pub fn part_1(input: &str) -> Output {
     for _ in 0..20 {
         for id in ids.iter().copied() {
             let mut monkey = monkeys.remove(&id).unwrap();
-            for (target, item) in monkey.throw_all() {
+            for (target, item) in monkey.throw_all(3) {
                 monkeys.get_mut(&target).unwrap().catch(item);
             }
             monkeys.insert(id, monkey);
@@ -21,7 +22,22 @@ pub fn part_1(input: &str) -> Output {
 }
 
 pub fn part_2(input: &str) -> Output {
-    input.parse().unwrap()
+    let mut monkeys = parse_monkeys(input);
+    let mut ids: Vec<_> = monkeys.keys().copied().collect();
+    ids.sort();
+    let modulo: WorryLevel = monkeys.values().map(|m| m.test_divisor).product();
+    for _ in 0..10_000 {
+        for id in ids.iter().copied() {
+            let mut monkey = monkeys.remove(&id).unwrap();
+            for (target, item) in monkey.throw_all(1) {
+                monkeys.get_mut(&target).unwrap().catch(item % modulo);
+            }
+            monkeys.insert(id, monkey);
+        }
+    }
+    let mut inspections: Vec<_> = monkeys.values().map(|m| m.inspected).collect();
+    inspections.sort();
+    inspections.into_iter().rev().take(2).product()
 }
 
 fn parse_monkeys(input: &str) -> HashMap<usize, Monkey> {
@@ -40,10 +56,10 @@ fn parse_monkeys(input: &str) -> HashMap<usize, Monkey> {
 }
 
 struct Monkey {
-    items: Vec<i32>,
+    items: Vec<WorryLevel>,
     operator: Operator,
     operand: Operand,
-    test_divisor: i32,
+    test_divisor: WorryLevel,
     targets: (usize, usize),
     inspected: usize,
 }
@@ -55,22 +71,29 @@ impl Debug for Monkey {
 }
 
 impl Monkey {
-    fn catch(&mut self, item: i32) {
+    fn catch(&mut self, item: WorryLevel) {
         self.items.push(item);
     }
 
-    fn throw_all(&mut self) -> impl Iterator<Item = (usize, i32)> + '_ {
+    fn throw_all(
+        &mut self,
+        worry_reduction_rate: WorryLevel,
+    ) -> impl Iterator<Item = (usize, WorryLevel)> + '_ {
         self.inspected += self.items.len();
-        self.items.drain(..).map(|i| {
-            let operand = match self.operand {
+        let operator = self.operator;
+        let operand = self.operand;
+        let test_divisor = self.test_divisor;
+        let (target_if_true, target_if_false) = self.targets;
+        self.items.drain(..).map(move |i| {
+            let operand = match operand {
                 Operand::Value(v) => v,
                 Operand::Old => i,
             };
-            let worry_level = self.operator.exec(i, operand) / 3;
-            let target_monkey = if worry_level % self.test_divisor == 0 {
-                self.targets.0
+            let worry_level = operator.exec(i, operand) / worry_reduction_rate;
+            let target_monkey = if worry_level % test_divisor == 0 {
+                target_if_true
             } else {
-                self.targets.1
+                target_if_false
             };
             (target_monkey, worry_level)
         })
@@ -84,13 +107,14 @@ enum Operator {
     Add,
 }
 
+#[derive(Debug, Copy, Clone)]
 enum Operand {
-    Value(i32),
+    Value(WorryLevel),
     Old,
 }
 
 impl Operator {
-    fn exec(self, left: i32, right: i32) -> i32 {
+    fn exec(self, left: WorryLevel, right: WorryLevel) -> WorryLevel {
         match self {
             Operator::Multiply => left * right,
             Operator::Divide => left / right,
@@ -137,20 +161,20 @@ fn parse_targets<'a>(mut lines: impl Iterator<Item = &'a str>) -> (usize, usize)
     (if_true, if_false)
 }
 
-fn parse_test(declaration: &str) -> i32 {
+fn parse_test(declaration: &str) -> WorryLevel {
     declaration
         .strip_prefix("Test: divisible by ")
         .unwrap()
-        .parse::<i32>()
+        .parse::<WorryLevel>()
         .unwrap()
 }
 
-fn parse_starting_items(declaration: &str) -> Vec<i32> {
+fn parse_starting_items(declaration: &str) -> Vec<WorryLevel> {
     declaration
         .strip_prefix("Starting items: ")
         .unwrap()
         .split(", ")
-        .map(|i| i.parse::<i32>().unwrap())
+        .map(|i| i.parse::<WorryLevel>().unwrap())
         .collect()
 }
 
@@ -169,7 +193,7 @@ fn parse_operation(declaration: &str) -> (Operator, Operand) {
     let operand = if operand == "old" {
         Operand::Old
     } else {
-        Operand::Value(operand.parse::<i32>().unwrap())
+        Operand::Value(operand.parse::<WorryLevel>().unwrap())
     };
     (operator, operand)
 }
@@ -218,10 +242,8 @@ Monkey 3:
     }
 
     #[rstest]
-    #[ignore = "not implemented"]
-    #[case::example(EXAMPLE, 0)]
-    #[ignore = "not implemented"]
-    #[case::input(INPUT, 0)]
+    #[case::example(EXAMPLE, 2713310158)]
+    #[case::input(INPUT, 19754471646)]
     fn test_part_2(#[case] input: &str, #[case] expected: Output) {
         assert_eq!(part_2(input.trim()), expected);
     }
@@ -304,9 +326,9 @@ Monkey 3:
         If true: throw to monkey 1
         If false: throw to monkey 3
     "#, vec![(1,2080), (3, 1200), (3, 3136)])]
-    fn should_throw(#[case] mut monkey: Monkey, #[case] expected_throws: Vec<(usize, i32)>) {
-        let actual_throws: Vec<_> = monkey.throw_all().collect();
+    fn should_throw(#[case] mut monkey: Monkey, #[case] expected_throws: Vec<(usize, WorryLevel)>) {
+        let actual_throws: Vec<_> = monkey.throw_all(3).collect();
         assert_eq!(actual_throws, expected_throws);
-        assert_eq!(monkey.throw_all().count(), 0); // <- And there is nothing left to throw
+        assert_eq!(monkey.throw_all(3).count(), 0); // <- And there is nothing left to throw
     }
 }
