@@ -66,12 +66,12 @@ impl Monkey {
                 Operand::Value(v) => v,
                 Operand::Old => i,
             };
-            let target_monkey = if i % self.test_divisor == 0 {
+            let worry_level = self.operator.exec(i, operand) / 3;
+            let target_monkey = if worry_level % self.test_divisor == 0 {
                 self.targets.0
             } else {
                 self.targets.1
             };
-            let worry_level = self.operator.exec(i, operand) / 3;
             (target_monkey, worry_level)
         })
     }
@@ -81,6 +81,7 @@ impl Monkey {
 enum Operator {
     Multiply,
     Divide,
+    Add,
 }
 
 enum Operand {
@@ -93,6 +94,7 @@ impl Operator {
         match self {
             Operator::Multiply => left * right,
             Operator::Divide => left / right,
+            Operator::Add => left + right,
         }
     }
 }
@@ -158,10 +160,11 @@ fn parse_operation(declaration: &str) -> (Operator, Operand) {
         .unwrap()
         .split_once(' ')
         .unwrap();
-    let operator = if operator == "*" {
-        Operator::Multiply
-    } else {
-        Operator::Divide
+    let operator = match operator {
+        "*" => Operator::Multiply,
+        "/" => Operator::Divide,
+        "+" => Operator::Add,
+        _ => panic!("Unexpected operator: {operator}"),
     };
     let operand = if operand == "old" {
         Operand::Old
@@ -208,10 +211,8 @@ Monkey 3:
     const INPUT: &str = include_str!("day11/input.txt");
 
     #[rstest]
-    #[ignore = "not implemented"]
     #[case::example(EXAMPLE, 10605)]
-    #[ignore = "not implemented"]
-    #[case::input(INPUT, 0)]
+    #[case::input(INPUT, 101436)]
     fn test_part_1(#[case] input: &str, #[case] expected: Output) {
         assert_eq!(part_1(input.trim()), expected);
     }
@@ -282,6 +283,27 @@ Monkey 3:
         If true: throw to monkey 0
         If false: throw to monkey 1
     "#, vec![(0, 2), (1, 3)])]
+    #[case(r#"
+    Starting items: 79, 98
+    Operation: new = old * 19
+    Test: divisible by 23
+        If true: throw to monkey 2
+        If false: throw to monkey 3
+    "#, vec![(3,500), (3, 620)])]
+    #[case(r#"
+    Starting items: 54, 65, 75, 74
+    Operation: new = old + 6
+    Test: divisible by 19
+        If true: throw to monkey 2
+        If false: throw to monkey 0
+    "#, vec![(0,20), (0, 23), (0, 27), (0, 26)])]
+    #[case(r#"
+    Starting items: 79, 60, 97
+    Operation: new = old * old
+    Test: divisible by 13
+        If true: throw to monkey 1
+        If false: throw to monkey 3
+    "#, vec![(1,2080), (3, 1200), (3, 3136)])]
     fn should_throw(#[case] mut monkey: Monkey, #[case] expected_throws: Vec<(usize, i32)>) {
         let actual_throws: Vec<_> = monkey.throw_all().collect();
         assert_eq!(actual_throws, expected_throws);
