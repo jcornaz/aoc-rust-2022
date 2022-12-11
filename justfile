@@ -18,11 +18,11 @@ verify: test lint
 
 # Watch the source files and run `just verify` when source changes
 watch:
-	cargo watch -- just verify
+	cargo watch -d 0.1 -- just verify
 
 # Watch the source files and run `just test-day` when source changes
 watch-day:
-	cargo watch -- just day={{day}} test-day lint
+	cargo watch -d 0.1 -- just day={{day}} test-day lint
 
 # Run all the tests
 test:
