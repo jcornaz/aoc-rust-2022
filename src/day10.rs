@@ -8,7 +8,6 @@ pub fn part_1(input: &str) -> Output {
     let mut result = 0;
     for cycle in iter::successors(Some(20), |c| Some(*c + 40)).take_while(|c| *c <= 220) {
         device.advance(cycle - last);
-        println!("{} {}", cycle, device.register_value());
         result += cycle as i32 * device.register_value();
         last = cycle;
     }
