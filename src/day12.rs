@@ -1,3 +1,5 @@
+use std::{convert::Infallible, str::FromStr};
+
 type Output = u64;
 
 pub fn part_1(input: &str) -> Output {
@@ -14,16 +16,13 @@ fn shortest_path_length(map: &str, start_level: char, end_level: char) -> u32 {
     let target_pos = map.find_and_replace('E', end_level);
     let mut steps = 0;
     while current_pos != target_pos {
-        println!("{:?}", current_pos);
-
-        current_pos = [map.right_of(current_pos), map.left_of(current_pos)]
-            .into_iter()
-            .flatten()
+        current_pos = map
+            .directions_from(current_pos)
+            .map(|p| (p, map.get(p)))
             .max_by_key(|(pos, v)| if *pos == target_pos { char::MAX } else { *v })
             .unwrap()
             .0;
         steps += 1;
-        assert!(steps < 100);
     }
     steps
 }
@@ -40,23 +39,8 @@ impl Map {
         }
     }
 
-    fn right_of(&self, (mut x, y): (usize, usize)) -> Option<((usize, usize), char)> {
-        x += 1;
-        self.cells
-            .get(y)
-            .and_then(|row| row.get(x))
-            .map(|&c| ((x, y), c))
-    }
-
-    fn left_of(&self, (mut x, y): (usize, usize)) -> Option<((usize, usize), char)> {
-        if x == 0 {
-            return None;
-        }
-        x -= 1;
-        self.cells
-            .get(y)
-            .and_then(|row| row.get(x))
-            .map(|&c| ((x, y), c))
+    fn get(&self, (x, y): (usize, usize)) -> char {
+        self.cells[y][x]
     }
 
     fn find_and_replace(&mut self, search: char, replace: char) -> (usize, usize) {
@@ -69,10 +53,31 @@ impl Map {
         self.cells[y][x] = replace;
         (x, y)
     }
+
+    fn directions_from(&self, (x, y): (usize, usize)) -> impl Iterator<Item = (usize, usize)> + '_ {
+        let width = self.cells[0].len();
+        let height = self.cells.len();
+        let value = self.cells[y][x] as u16;
+        [(-1, 0), (1, 0), (0, 1), (0, -1)]
+            .into_iter()
+            .map(move |(dx, dy)| ((x as i32 + dx) as usize, (y as i32 + dy) as usize))
+            .filter(move |(x, y)| *x < width && *y < height)
+            .filter(move |(x, y)| self.cells[*y][*x] as u16 - 1 <= value)
+    }
+}
+
+impl FromStr for Map {
+    type Err = Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Map::parse(s))
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use super::*;
 
     const EXAMPLE: &str = r#"
@@ -108,7 +113,8 @@ abdefghi
     #[case("SaE", 'a', 'a', 2)]
     #[case("aSE", 'a', 'a', 1)]
     #[case("ES", 'a', 'a', 1)]
-    // #[case("SE\nbc", 'a', 'd', 3)]
+    #[case("SE\nbc", 'a', 'd', 3)]
+    // #[case("SbE\nbbb", 'a', 'c', 2)]
     fn find_shortest_path(
         #[case] map: &str,
         #[case] start_level: char,
@@ -116,5 +122,24 @@ abdefghi
         #[case] expected: u32,
     ) {
         assert_eq!(shortest_path_length(map, start_level, end_level), expected);
+    }
+
+    #[rstest]
+    #[case("ab", (0, 0), &[(1, 0)])]
+    #[case("ab", (1, 0), &[(0, 0)])]
+    #[case("abc", (1, 0), &[(0, 0), (2, 0)])]
+    #[case("ab\nab", (0, 0), &[(1, 0), (0, 1)])]
+    #[case("ab\nab", (1, 1), &[(0, 1), (1, 0)])]
+    #[case("ad\nbc", (0, 0), &[(0, 1)])]
+    #[case("ad\nbc", (0, 1), &[(0, 0), (1, 1)])]
+    #[case("ad\nbc", (1, 1), &[(0, 1), (1, 0)])]
+    fn find_options(
+        #[case] map: Map,
+        #[case] from_pos: (usize, usize),
+        #[case] expected: &[(usize, usize)],
+    ) {
+        let expected: HashSet<_> = expected.iter().copied().collect();
+        let actual: HashSet<_> = map.directions_from(from_pos).collect();
+        assert_eq!(actual, expected);
     }
 }
