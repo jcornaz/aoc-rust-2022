@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 type Output = u64;
 
 pub fn part_1(input: &str) -> Output {
@@ -40,15 +42,47 @@ impl Simulation {
 
     fn stop(&mut self, (x, y): (usize, usize), shape: Shape) {
         self.cells
-            .resize_with(self.cells.len().max(shape.height() + y), Vec::new);
+            .resize_with(self.cells.len().max(shape.height() + y), || vec![false; 7]);
+        shape.blocks().iter().copied().for_each(|(dx, dy)| {
+            self.cells[y + dy][x + dy] = true;
+        })
     }
 
     fn can_move_down(&self, (x, y): (usize, usize), shape: Shape) -> bool {
         y > self.height()
+        // if y == 0 {
+        //     return false;
+        // }
+        // !shape
+        //     .blocks()
+        //     .iter()
+        //     .copied()
+        //     .map(|(dx, dy)| (x + dx, y + dy))
+        //     .any(|(x, y)| {
+        //         self.cells
+        //             .get(y)
+        //             .and_then(|row| row.get(x))
+        //             .copied()
+        //             .unwrap_or_default()
+        //     })
     }
 
     fn height(&self) -> usize {
         self.cells.len()
+    }
+}
+
+impl Debug for Simulation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for row in self.cells.iter().rev() {
+            write!(f, "|")?;
+            for col in row {
+                write!(f, "{}", if *col { '#' } else { ' ' })?;
+            }
+            writeln!(f, "|")?;
+        }
+        writeln!(f, "+-------+")?;
+        Ok(())
     }
 }
 
@@ -70,6 +104,15 @@ enum Shape {
 }
 
 impl Shape {
+    fn blocks(self) -> &'static [(usize, usize)] {
+        match self {
+            Shape::HorizontalLine => &[(0, 0), (1, 0), (2, 0), (3, 0)],
+            Shape::Plus => &[(1, 0), (0, 1), (1, 1), (2, 1), (1, 2)],
+            Shape::Corner => &[(0, 0), (1, 0), (2, 0), (2, 1), (2, 2)],
+            Shape::VerticalLine => &[(0, 0), (0, 1), (0, 2), (0, 3)],
+            Shape::Square => &[(0, 0), (1, 0), (0, 1), (1, 1)],
+        }
+    }
     fn height(self) -> usize {
         match self {
             Shape::HorizontalLine => 1,
@@ -114,6 +157,7 @@ mod tests {
     ) {
         let mut simulation = Simulation::new(stream);
         simulation.simulate(rock_count);
+        println!("{simulation:?}");
         assert_eq!(simulation.height(), expected_height);
     }
 
