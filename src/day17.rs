@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, ops::ControlFlow};
 
 type Output = usize;
 
@@ -36,23 +36,25 @@ impl Simulation {
     }
 
     fn drop_shape(&mut self, shape: Shape) {
-        let mut x = 2;
-        let mut y = self.height() + 3;
-        loop {
-            let d = self.stream[self.stream_index % self.stream.len()];
-            self.stream_index += 1;
-            if d == '>' && self.can_go_to((x + 1, y), shape) {
-                x += 1;
-            } else if d == '<' && x > 0 && self.can_go_to((x - 1, y), shape) {
-                x -= 1;
-            }
-            if y > 0 && self.can_go_to((x, y - 1), shape) {
-                y -= 1;
-            } else {
-                break;
-            }
+        let mut position = (2, self.height() + 3);
+        while let ControlFlow::Continue(_) = self.step_shape(&mut position, shape) {}
+        self.save_end_pos(position, shape);
+    }
+
+    fn step_shape(&mut self, (x, y): &mut (usize, usize), shape: Shape) -> ControlFlow<()> {
+        let d = self.stream[self.stream_index % self.stream.len()];
+        self.stream_index += 1;
+        if d == '>' && self.can_go_to((*x + 1, *y), shape) {
+            *x += 1;
+        } else if d == '<' && *x > 0 && self.can_go_to((*x - 1, *y), shape) {
+            *x -= 1;
         }
-        self.save_end_pos((x, y), shape);
+        if *y > 0 && self.can_go_to((*x, *y - 1), shape) {
+            *y -= 1;
+        } else {
+            return ControlFlow::Break(());
+        }
+        ControlFlow::Continue(())
     }
 
     fn save_end_pos(&mut self, (x, y): (usize, usize), shape: Shape) {
