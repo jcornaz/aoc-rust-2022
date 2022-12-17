@@ -1,9 +1,11 @@
 use std::fmt::Debug;
 
-type Output = u64;
+type Output = usize;
 
 pub fn part_1(input: &str) -> Output {
-    input.parse().unwrap()
+    let mut simulation = Simulation::new(input);
+    simulation.simulate(2022);
+    simulation.height()
 }
 
 pub fn part_2(input: &str) -> Output {
@@ -12,6 +14,7 @@ pub fn part_2(input: &str) -> Output {
 
 struct Simulation {
     stream: Vec<char>,
+    stream_index: usize,
 
     /// Row major (bottom to up)
     cells: Vec<Vec<bool>>,
@@ -21,6 +24,7 @@ impl Simulation {
     fn new(stream: &str) -> Self {
         Self {
             stream: stream.chars().collect(),
+            stream_index: 0,
             cells: Vec::new(),
         }
     }
@@ -34,37 +38,45 @@ impl Simulation {
     fn drop_shape(&mut self, shape: Shape) {
         let mut x = 2;
         let mut y = self.height() + 3;
-        while self.can_move_down((x, y), shape) {
-            y -= 1;
+        loop {
+            let d = self.stream[self.stream_index % self.stream.len()];
+            self.stream_index += 1;
+            if d == '>' && self.can_go_to((x + 1, y), shape) {
+                x += 1;
+            } else if d == '<' && x > 0 && self.can_go_to((x - 1, y), shape) {
+                x -= 1;
+            }
+            if y > 0 && self.can_go_to((x, y - 1), shape) {
+                y -= 1;
+            } else {
+                break;
+            }
         }
-        self.stop((x, y), shape);
+        self.save_end_pos((x, y), shape);
     }
 
-    fn stop(&mut self, (x, y): (usize, usize), shape: Shape) {
+    fn save_end_pos(&mut self, (x, y): (usize, usize), shape: Shape) {
         self.cells
             .resize_with(self.cells.len().max(shape.height() + y), || vec![false; 7]);
         shape.blocks().iter().copied().for_each(|(dx, dy)| {
-            self.cells[y + dy][x + dy] = true;
+            self.cells[y + dy][x + dx] = true;
         })
     }
 
-    fn can_move_down(&self, (x, y): (usize, usize), shape: Shape) -> bool {
-        y > self.height()
-        // if y == 0 {
-        //     return false;
-        // }
-        // !shape
-        //     .blocks()
-        //     .iter()
-        //     .copied()
-        //     .map(|(dx, dy)| (x + dx, y + dy))
-        //     .any(|(x, y)| {
-        //         self.cells
-        //             .get(y)
-        //             .and_then(|row| row.get(x))
-        //             .copied()
-        //             .unwrap_or_default()
-        //     })
+    fn can_go_to(&self, (x, y): (usize, usize), shape: Shape) -> bool {
+        !shape
+            .blocks()
+            .iter()
+            .copied()
+            .map(|(dx, dy)| (x + dx, y + dy))
+            .any(|p| self.is_blocked(p))
+    }
+
+    fn is_blocked(&self, (x, y): (usize, usize)) -> bool {
+        match self.cells.get(y) {
+            Some(row) => row.get(x).copied().unwrap_or(true),
+            None => x >= 7,
+        }
     }
 
     fn height(&self) -> usize {
@@ -77,7 +89,7 @@ impl Debug for Simulation {
         for row in self.cells.iter().rev() {
             write!(f, "|")?;
             for col in row {
-                write!(f, "{}", if *col { '#' } else { ' ' })?;
+                write!(f, "{}", if *col { '#' } else { '.' })?;
             }
             writeln!(f, "|")?;
         }
@@ -132,10 +144,8 @@ mod tests {
     const INPUT: &str = include_str!("day17/input.txt");
 
     #[rstest]
-    #[ignore = "not implemented"]
     #[case::example(EXAMPLE, 3068)]
-    #[ignore = "not implemented"]
-    #[case::input(INPUT, 0)]
+    #[case::input(INPUT, 3153)]
     fn test_part_1(#[case] input: &str, #[case] expected: Output) {
         assert_eq!(part_1(input.trim()), expected);
     }
@@ -149,7 +159,7 @@ mod tests {
     #[case(">", 6, 14)]
     #[case(EXAMPLE, 1, 1)]
     #[case(EXAMPLE, 2, 4)]
-    // #[case(EXAMPLE, 3, 6)]
+    #[case(EXAMPLE, 3, 6)]
     fn should_simulate_n_rocks(
         #[case] stream: &str,
         #[case] rock_count: u16,
